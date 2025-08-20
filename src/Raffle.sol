@@ -20,16 +20,16 @@
 // view & pure functions
 
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.19;
 
+// import {VRFConsumerBaseV2Plus} from "@chainlink/contracts@1.4.0/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
 /**
  * @title A sample Raffle Contract
- * @author Patrick Collins
+ * @author hammedctgr
  * @notice This contract is for creating a sample raffle contract
  * @dev This implements the Chainlink VRF Version 2
  */
@@ -44,7 +44,8 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     enum RaffleState {
         OPEN,
         CALCULATING
-    }
+    } 
+
 
     /* State variables */
     // Chainlink VRF Variables
@@ -69,13 +70,13 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
     /* Functions */
     constructor(
-        uint256 subscriptionId,
-        bytes32 gasLane, // keyHash
-        uint256 interval,
         uint256 entranceFee,
+        uint256 interval,
+        address vrfCoordinatorV2_5,
+        bytes32 gasLane,
         uint32 callbackGasLimit,
-        address vrfCoordinatorV2
-    ) VRFConsumerBaseV2Plus(vrfCoordinatorV2) {
+        uint64 subscriptionId
+    ) VRFConsumerBaseV2Plus(vrfCoordinatorV2_5) {
         i_gasLane = gasLane;
         i_interval = interval;
         i_subscriptionId = subscriptionId;
@@ -120,10 +121,10 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         returns (bool upkeepNeeded, bytes memory /* performData */ )
     {
         bool isOpen = RaffleState.OPEN == s_raffleState;
-        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool hasPlayers = s_players.length > 0;
         bool hasBalance = address(this).balance > 0;
-        upkeepNeeded = (timePassed && isOpen && hasBalance && hasPlayers);
+        upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
         return (upkeepNeeded, "0x0"); // can we comment this out?
     }
 
@@ -153,6 +154,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
                 )
             })
+            
         );
         // Quiz... is this redundant?
         emit RequestedRaffleWinner(requestId);
@@ -163,12 +165,6 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
      * calls to send the money to the random winner.
      */
     function fulfillRandomWords(uint256, /* requestId */ uint256[] calldata randomWords) internal override {
-        // s_players size 10
-        // randomNumber 202
-        // 202 % 10 ? what's doesn't divide evenly into 202?
-        // 20 * 10 = 200
-        // 2
-        // 202 % 10 = 2
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
